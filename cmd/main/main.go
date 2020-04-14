@@ -1,21 +1,62 @@
 package main
 
-/**** this is the main entrypoint of Igor and the getaround scraper tools.
+/**** this is the main entrypoint of mauth service
 
-It runs in two different modes. This is defined by the MODE env variable : server or worker.
-In worker mode : the app scrapes regularly getaround events, alerts and car localization
-In server mode : the app is launched in 2 instances (load balancing) so it has to store every change in DB and lock tables if needed
+mauth is a webservice used for authorization, authentication, user registration
+it uses either a file or an sql as permanent storage
+it will use a local cache on a per user basis to store authorization
 
-Three different configuration for both modes :
-- dev : ongoing development
-- staging : testing environment
-- prod : live app
+mauth regroups users, actions, roles (described below) in Domain.
+users are unique among a specific domain but may be duplicated in different domains.
+Same goes for actions and roles.
 
-This is also indicated by an env variable : ENVIRONMENT  = (dev, staging, prod)
+** Authorization model
 
-The DB used by the app is indicated in the DATASOURCE env variable
+users are represented as User struct.
+Actions represent atomic taks whose access has to be verified.
+Actions are gathered into Roles, to simplify authorization management. One action may belong to multiple roles
+Actions are applied to Objects. To check if a user may  trigger an action on an object,
+we have to check if the user has the right to. That's what Rights are for :
+a Right is an assignment of a Role to a specific User for a specific object
+Through Rights, any User may be assigned multiple Roles, applying to one Object at least.
+Rights may have an expiration date for temporary access grants
 
-The proxy account used by the app in indicated in the PROXY env variable
+Objects are not managed by mauth. When a right is granted to a user, an external object ID has to be provided
+mauth will then store the right as the following struct : (user, role, object_id, optional expiration date)
+
+The object_id is a string that describes the object. The string format is up to the developer to choose but we advise
+to use the following structure :
+object_type(object_id)
+This allows for tree-based organization of object.
+For example, let's say a car belongs to a fleet of cars in a garage which belongs to a company
+A user, let's call him Bob,  may have the right to drive this car (role = driver), open any car in the garage (role = maintainer),
+and list any of the cars in company ( role = inventory )
+So the Bob's rights would be :
+Bob, driver, car(123)
+Bob, maintainer, garage(28)
+Bob, inventory, company(9)
+
+To check Bob's right to trigger an action on a specific car, a call will be maid to mauth service with the following
+parameters : ID of bob, tree of car ID : company(9)garage(28)car(123), task name (carOpen)
+
+** Authentication model
+
+mauth uses :
+- the jwt mechanism to create auth token
+- API key for specific key access
+
+To authenticate an user, an app has to POST {mauth_url}/user/auth
+Request should contain contain :
+- a domain token as header values
+- user credential (login & pwd) as post values
+
+In return, mauth sends a JWT for the session along with a JWT for renewal
+
+
+
+
+
+
 */
 
 import (
