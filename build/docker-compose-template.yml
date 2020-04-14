@@ -1,0 +1,35 @@
+version: '3'
+services:
+  mauth-server:
+    build: .
+    ports:
+      - "8090:80"
+    links:
+      - mariadb-mauth
+    environment:
+      - DATASOURCE=fleetdev:fleetdev@tcp(mariadb-catcher:3306)/mauth
+      - AWS_ACCESS_KEY_ID={$AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY={$AWS_SECRET_ACCESS_KEY}
+      - SERVERMODE=FARGATE
+      - MODE=server
+      - ENVIRONMENT=dev
+      - PROXY=http://lum-customer-hl_6d9a1b2c-zone-static:3b18nzekry3n@zproxy.lum-superproxy.io:22225
+    command: [ '/app/bin/server' ]
+  mariadb-mauth:
+    image: mariadb
+    restart: always
+    environment:
+      - MYSQL_DATABASE=mauth
+      - MYSQL_PASSWORD=fleetdev
+      - MYSQL_RANDOM_ROOT_PASSWORD=yes
+      - MYSQL_USER=fleetdev
+    ports:
+      # <Port exposed> : < MySQL Port running inside container>
+      - "3308:3306"
+    expose:
+      # Opens port 3308 on the container
+      - '3308'
+    command: ['mysqld', '--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
+  # Names our volume
+volumes:
+  data:
